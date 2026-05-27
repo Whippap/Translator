@@ -162,12 +162,14 @@ function exportHtml(): void {
     const cloneBar = clone.querySelector('.__translator_bar');
     if (cloneBar) cloneBar.remove();
 
+    // 将相对 URL 转为绝对 URL，保留页面样式和图片
+    makeUrlsAbsolute(clone);
+
     const html = '<!DOCTYPE html>\n' + clone.outerHTML;
     const filename = `${document.title || 'translated-page'}.html`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
 
-    // 直接在内容脚本中触发下载（不经过 background，更可靠）
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -192,6 +194,55 @@ function exportHtml(): void {
     log('导出失败:', err);
     bar.setError('导出失败，请重试');
   }
+}
+
+/** 将克隆 DOM 中的相对 URL 转为绝对 URL */
+function makeUrlsAbsolute(root: HTMLElement): void {
+  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
+  const urlAttrs: Record<string, string[]> = {
+    link: ['href'],
+    img: ['src', 'srcset'],
+    script: ['src'],
+    a: ['href'],
+    source: ['src', 'srcset'],
+  };
+
+  for (const [tag, attrs] of Object.entries(urlAttrs)) {
+    const els = root.querySelectorAll(tag);
+    for (const el of els) {
+      for (const attr of attrs) {
+        const val = el.getAttribute(attr);
+        if (val && !val.startsWith('http') && !val.startsWith('data:') && !val.startsWith('//')) {
+          try {
+            el.setAttribute(attr, new URL(val, location.href).href);
+          } catch {
+            // 无法解析的 URL 保持原样
+          }
+        }
+      }
+    }
+  }
+
+  // 处理 style 标签中的 url() 引用
+  const styleEls = root.querySelectorAll('style');
+  for (const el of styleEls) {
+    const text = el.textContent;
+    if (text) {
+      el.textContent = text.replace(
+        /url\(["']?([^)"']+)["']?\)/g,
+        (_match, path: string) => {
+          if (path.startsWith('http') || path.startsWith('data:')) return `url(${path})`;
+          try {
+            return `url(${new URL(path, location.href).href})`;
+          } catch {
+            return `url(${path})`;
+          }
+        },
+      );
+    }
+  }
+
+  log('URL 转换完成');
 }
 
 async function clearTranslation(): Promise<void> {

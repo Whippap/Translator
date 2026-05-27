@@ -38,11 +38,27 @@ describe('extractTextBlocks', () => {
     expect(blocks).toHaveLength(1);
   });
 
-  it('skips <code> and <pre> elements', () => {
-    const doc = createTestDocument('<p>Explain:</p><pre><code>const x=1</code></pre><p>end</p>');
+  it('skips <pre> blocks but includes inline <code>', () => {
+    const doc = createTestDocument(
+      '<p>Explain:</p><pre><code>const x=1</code></pre><p>Run <code>cmd</code> now</p>',
+    );
     const blocks = extractTextBlocks(doc.body);
     const combined = blocks.map(b => b.text).join(' ');
+    // <pre> 内的代码块应被跳过
     expect(combined).not.toContain('const x=1');
+    // 行内 <code> 应保留并包裹在标签中
+    expect(combined).toContain('<code>cmd</code>');
+  });
+
+  it('wraps inline <code> in tags for API translation', () => {
+    const doc = createTestDocument(
+      '<p>Run <code>create-next-app</code> to start</p>',
+    );
+    const blocks = extractTextBlocks(doc.body);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].text).toContain('<code>create-next-app</code>');
+    expect(blocks[0].text).toContain('Run');
+    expect(blocks[0].text).toContain('to start');
   });
 
   it('skips <img> elements', () => {

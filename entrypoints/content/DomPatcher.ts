@@ -36,7 +36,8 @@ function replaceTextContent(parent: Element, translatedText: string): void {
   if (!parent.hasAttribute('data-trans-original')) {
     parent.setAttribute('data-trans-original', parent.innerHTML);
   }
-  parent.textContent = translatedText;
+  // 使用 innerHTML 而非 textContent，保留译文中的行内标签（如 <code>）
+  parent.innerHTML = translatedText;
 }
 
 function insertTranslationSpan(
