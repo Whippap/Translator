@@ -51,3 +51,24 @@ export async function clearCacheForUrl(url: string): Promise<void> {
     await chrome.storage.local.remove(keysToRemove);
   }
 }
+
+export async function clearAllCache(): Promise<void> {
+  const allData = await chrome.storage.local.get(null) as Record<string, unknown>;
+  const keysToRemove = Object.keys(allData).filter(k => k.startsWith('cache:'));
+  if (keysToRemove.length > 0) {
+    await chrome.storage.local.remove(keysToRemove);
+  }
+}
+
+export async function getCacheStats(): Promise<{ count: number; bytes: number }> {
+  const allData = await chrome.storage.local.get(null) as Record<string, unknown>;
+  let count = 0;
+  let bytes = 0;
+  for (const [key, value] of Object.entries(allData)) {
+    if (key.startsWith('cache:')) {
+      count++;
+      bytes += JSON.stringify(value).length;
+    }
+  }
+  return { count, bytes };
+}

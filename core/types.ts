@@ -22,6 +22,7 @@ export interface Settings {
   engine: 'deepseek-v4-pro' | 'deepseek-v4-flash';
   displayMode: 'bilingual' | 'translation-only';
   enabled: boolean;
+  cacheEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   engine: 'deepseek-v4-flash',
   displayMode: 'bilingual',
   enabled: true,
+  cacheEnabled: true,
 };
 
 // ── 会话消息 ──

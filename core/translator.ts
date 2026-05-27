@@ -23,6 +23,7 @@ export async function translateBatch(
   apiKey: string,
   model: string,
   url: string,
+  skipCache: boolean = false,
 ): Promise<TranslatedBlock[]> {
   if (!apiKey) throw new TranslateError('API Key 未配置');
 
@@ -31,12 +32,14 @@ export async function translateBatch(
   const uncachedItems: TextBlock[] = [];
 
   for (const item of items) {
-    const cached = await getCachedTranslation(url, item.text);
-    if (cached !== null) {
-      results.push({ id: item.id, text: cached, fromCache: true });
-    } else {
-      uncachedItems.push(item);
+    if (!skipCache) {
+      const cached = await getCachedTranslation(url, item.text);
+      if (cached !== null) {
+        results.push({ id: item.id, text: cached, fromCache: true });
+        continue;
+      }
     }
+    uncachedItems.push(item);
   }
 
   if (uncachedItems.length === 0) return results;

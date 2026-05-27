@@ -3,7 +3,7 @@ import { MESSAGE_TYPES } from '../../core/types';
 import { translateBatch } from '../../core/translator';
 import { createSession, endSession } from '../../core/session';
 import { getSettings } from '../../core/storage';
-import { clearCacheForUrl } from '../../core/cache';
+import { clearCacheForUrl, clearAllCache, getCacheStats } from '../../core/cache';
 
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message: any, sender) => {
@@ -12,11 +12,12 @@ export default defineBackground(() => {
         return getSettings();
 
       case MESSAGE_TYPES.TRANSLATE_BATCH: {
-        const { items, sessionId } = message;
+        const { items, sessionId, skipCache } = message;
         return handleTranslateBatch(
           items as TextBlock[],
           sessionId as string,
           sender.tab?.url,
+          skipCache as boolean,
         );
       }
 
@@ -35,6 +36,12 @@ export default defineBackground(() => {
         return createSession(sender.tab.id, sender.tab.url);
       }
 
+      case 'cache:stats':
+        return getCacheStats();
+
+      case 'cache:clear-all':
+        return clearAllCache();
+
       default:
         return;
     }
@@ -45,12 +52,16 @@ async function handleTranslateBatch(
   items: TextBlock[],
   sessionId: string,
   tabUrl?: string,
+  skipCache: boolean = false,
 ): Promise<{ results: { id: string; text: string; fromCache: boolean }[]; allCached: boolean }> {
   const settings = await getSettings();
 
   if (!settings.apiKey) {
     throw new Error('请先在插件弹窗中配置 API Key');
   }
+
+  // 用户关闭缓存 或 显式跳过缓存时，不走缓存
+  const effectiveSkipCache = !settings.cacheEnabled || skipCache;
 
   const url = tabUrl ?? extractUrlFromSession(sessionId);
   const results = await translateBatch(
@@ -59,6 +70,7 @@ async function handleTranslateBatch(
     settings.apiKey,
     settings.engine,
     url,
+    effectiveSkipCache,
   );
   const allCached = results.every(r => r.fromCache);
 

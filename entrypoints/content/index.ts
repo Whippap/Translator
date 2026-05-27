@@ -56,7 +56,8 @@ async function checkEnabled(): Promise<void> {
   }
 
   bar = new FloatingBar({
-    onTranslate: startTranslation,
+    onTranslate: () => startTranslation(false),
+    onReTranslate: () => startTranslation(true),
     onToggleMode: toggleMode,
     onExport: exportHtml,
     onClear: clearTranslation,
@@ -67,9 +68,9 @@ async function checkEnabled(): Promise<void> {
   watchNavigation();
 }
 
-async function startTranslation(): Promise<void> {
+async function startTranslation(skipCache: boolean): Promise<void> {
   if (!bar) return;
-  log('=== 开始翻译 ===');
+  log(`=== 开始翻译 (skipCache=${skipCache}) ===`);
 
   const settings = await browser.runtime.sendMessage({ type: MESSAGE_TYPES.GET_SETTINGS });
   log('当前设置:', { apiKey: settings.apiKey ? '***' + settings.apiKey.slice(-4) : '(空)', engine: settings.engine, displayMode: settings.displayMode });
@@ -93,10 +94,20 @@ async function startTranslation(): Promise<void> {
     log('创建会话:', sessionId);
   }
 
+  if (skipCache) {
+    // 重新翻译时清除当前页面缓存
+    await browser.runtime.sendMessage({
+      type: MESSAGE_TYPES.CLEAR_SESSION,
+      sessionId,
+    });
+    sessionId = await browser.runtime.sendMessage({ type: 'create-session' });
+  }
+
   translationCache.clear();
 
   const batches = chunkArray(textBlocks, BATCH_SIZE);
   log(`共 ${batches.length} 批次，每批 ${BATCH_SIZE} 个`);
+  let totalCached = 0;
 
   for (let i = 0; i < batches.length; i++) {
     bar.setProgress(i + 1, batches.length);
@@ -106,8 +117,10 @@ async function startTranslation(): Promise<void> {
         type: MESSAGE_TYPES.TRANSLATE_BATCH,
         items: batches[i],
         sessionId,
+        skipCache,
       });
       log(`第 ${i + 1} 批返回 ${response.results.length} 条结果, 全部缓存命中: ${response.allCached}`);
+      if (response.allCached) totalCached++;
 
       for (const r of response.results) {
         translationCache.set(r.id, r.text);
@@ -123,7 +136,11 @@ async function startTranslation(): Promise<void> {
   }
 
   log('=== 翻译完成 ===');
-  bar.setDone();
+  if (totalCached === batches.length && !skipCache) {
+    bar.setDoneCached();
+  } else {
+    bar.setDone();
+  }
 }
 
 function toggleMode(): void {

@@ -99,3 +99,53 @@ body {
   margin-top: 4px;
   min-height: 16px;
 }
+
+.hint {
+  font-size: 11px;
+  color: #6c7086;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #45475a;
+  margin: 14px 0;
+}
+
+.cache-section {
+  margin-top: 2px;
+}
+
+.cache-title {
+  font-size: 12px;
+  color: #a6adc8;
+  margin-bottom: 6px;
+}
+
+.cache-info {
+  font-size: 12px;
+  color: #6c7086;
+  margin-bottom: 8px;
+}
+
+.btn-clear-cache {
+  width: 100%;
+  padding: 7px 0;
+  border: 1px solid #f38ba8;
+  border-radius: 6px;
+  background: transparent;
+  color: #f38ba8;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-clear-cache:hover:not(:disabled) {
+  background: rgba(243, 139, 168, 0.15);
+}
+
+.btn-clear-cache:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS, type Settings } from './types';
 
 export async function getSettings(): Promise<Settings> {
-  const stored = await chrome.storage.local.get(['apiKey', 'engine', 'displayMode', 'enabled']) as Partial<Settings>;
+  const stored = await chrome.storage.local.get(['apiKey', 'engine', 'displayMode', 'enabled', 'cacheEnabled']) as Partial<Settings>;
   return { ...DEFAULT_SETTINGS, ...stored };
 }
 
