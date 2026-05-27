@@ -2,7 +2,13 @@ import type { ChatMessage, SessionId } from './types';
 import { SYSTEM_PROMPT, MAX_SESSION_ROUNDS } from './types';
 
 export async function createSession(tabId: number, url: string): Promise<SessionId> {
-  const normalizedUrl = new URL(url).hostname + new URL(url).pathname;
+  return createSessionWithKey(tabId, url);
+}
+
+export async function createSessionWithKey(tabId: number, url: string): Promise<SessionId> {
+  const safeUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const parsed = new URL(safeUrl);
+  const normalizedUrl = parsed.hostname + parsed.pathname;
   const sessionId: SessionId = `session_${tabId}_${normalizedUrl}`;
   const initialMessages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }];
   await chrome.storage.session.set({ [sessionId]: initialMessages });
