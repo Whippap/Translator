@@ -21,12 +21,14 @@ export interface Settings {
   apiKey: string;
   engine: 'deepseek-v4-pro' | 'deepseek-v4-flash';
   displayMode: 'bilingual' | 'translation-only';
+  enabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   engine: 'deepseek-v4-flash',
   displayMode: 'bilingual',
+  enabled: true,
 };
 
 // ── 会话消息 ──

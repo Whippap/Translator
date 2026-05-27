@@ -49,6 +49,7 @@ describe('saveSettings', () => {
       apiKey: 'sk-new',
       engine: 'deepseek-v4-pro',
       displayMode: 'translation-only',
+      enabled: true,
     });
     expect(mockStorage.apiKey).toBe('sk-new');
     expect(mockStorage.engine).toBe('deepseek-v4-pro');

@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from '../../core/types';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { EngineSelect } from './components/EngineSelect';
 import { DisplayModeToggle } from './components/DisplayModeToggle';
+import { EnableToggle } from './components/EnableToggle';
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -11,7 +12,7 @@ export default function App() {
 
   useEffect(() => {
     chrome.storage.local.get(
-      ['apiKey', 'engine', 'displayMode'],
+      ['apiKey', 'engine', 'displayMode', 'enabled'],
       (result) => {
         setSettings({ ...DEFAULT_SETTINGS, ...result });
         setLoaded(true);
@@ -41,6 +42,10 @@ export default function App() {
       <DisplayModeToggle
         value={settings.displayMode}
         onChange={(displayMode) => update({ displayMode })}
+      />
+      <EnableToggle
+        value={settings.enabled}
+        onChange={(enabled) => update({ enabled })}
       />
     </div>
   );

@@ -85,7 +85,6 @@ async function handleExportHtml(
   await browser.downloads.download({
     url,
     filename,
-    saveAs: true,
   });
 }
 

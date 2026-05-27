@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Translator',
     description: 'AI 翻译插件 — 英文技术文档原生级翻译体验',
-    permissions: ['storage'],
+    permissions: ['storage', 'downloads'],
     host_permissions: ['<all_urls>'],
   },
 });

@@ -1,7 +1,7 @@
 import { extractTextBlocks } from './TextExtractor';
-import { applyTranslation, switchDisplayMode, restoreOriginal } from './DomPatcher';
+import { applyTranslation, restoreOriginal } from './DomPatcher';
 import { FloatingBar } from './FloatingBar';
-import type { TextBlock, TranslatedBlock } from '../../core/types';
+import type { TextBlock } from '../../core/types';
 import { MESSAGE_TYPES, BATCH_SIZE } from '../../core/types';
 import './styles/floating-bar.css';
 import './styles/translation.css';
@@ -10,27 +10,44 @@ let textBlocks: TextBlock[] = [];
 let currentMode: 'bilingual' | 'translation-only' = 'bilingual';
 let sessionId: string | null = null;
 let bar: FloatingBar | null = null;
+/** 缓存所有翻译结果，用于模式切换时重新应用 */
+const translationCache = new Map<string, string>();
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    if (window !== window.top) return;
-
-    textBlocks = extractTextBlocks(document.body);
-
-    if (textBlocks.length === 0) return;
-
-    bar = new FloatingBar({
-      onTranslate: startTranslation,
-      onToggleMode: toggleMode,
-      onExport: exportHtml,
-      onClear: clearTranslation,
-    });
-    bar.mount();
-
-    watchNavigation();
+    checkEnabled();
   },
 });
+
+async function checkEnabled(): Promise<void> {
+  const { enabled } = await browser.runtime.sendMessage({ type: MESSAGE_TYPES.GET_SETTINGS });
+  if (!enabled) {
+    // 插件已停用，清理 DOM
+    if (bar) {
+      restoreOriginal(document.body);
+      bar.unmount();
+      bar = null;
+    }
+    return;
+  }
+
+  if (window !== window.top) return;
+  if (bar) return; // 已初始化
+
+  textBlocks = extractTextBlocks(document.body);
+  if (textBlocks.length === 0) return;
+
+  bar = new FloatingBar({
+    onTranslate: startTranslation,
+    onToggleMode: toggleMode,
+    onExport: exportHtml,
+    onClear: clearTranslation,
+  });
+  bar.mount();
+
+  watchNavigation();
+}
 
 async function startTranslation(): Promise<void> {
   if (!bar) return;
@@ -44,11 +61,9 @@ async function startTranslation(): Promise<void> {
     return;
   }
 
-  // 从设置同步当前显示模式
   currentMode = settings.displayMode || 'bilingual';
   bar.setMode(currentMode);
 
-  // 重新提取文本块（可能由于上次清除或 DOM 变化）
   if (textBlocks.length === 0) {
     textBlocks = extractTextBlocks(document.body);
   }
@@ -56,6 +71,9 @@ async function startTranslation(): Promise<void> {
   if (!sessionId) {
     sessionId = await browser.runtime.sendMessage({ type: 'create-session' });
   }
+
+  // 清除旧翻译结果
+  translationCache.clear();
 
   const batches = chunkArray(textBlocks, BATCH_SIZE);
 
@@ -67,6 +85,11 @@ async function startTranslation(): Promise<void> {
         items: batches[i],
         sessionId,
       });
+
+      // 缓存所有翻译结果
+      for (const r of response.results) {
+        translationCache.set(r.id, r.text);
+      }
 
       applyTranslation(document.body, batches[i], response.results, currentMode);
     } catch (err) {
@@ -82,8 +105,24 @@ async function startTranslation(): Promise<void> {
 function toggleMode(): void {
   currentMode =
     currentMode === 'bilingual' ? 'translation-only' : 'bilingual';
-  switchDisplayMode(document.body, currentMode);
+  // 重新应用所有翻译（基于当前翻译缓存）
+  reapplyAllTranslations();
   if (bar) bar.setMode(currentMode);
+}
+
+function reapplyAllTranslations(): void {
+  restoreOriginal(document.body);
+  for (const block of textBlocks) {
+    const translated = translationCache.get(block.id);
+    if (translated) {
+      applyTranslation(
+        document.body,
+        [block],
+        [{ id: block.id, text: translated, fromCache: true }],
+        currentMode,
+      );
+    }
+  }
 }
 
 async function exportHtml(): Promise<void> {
@@ -101,7 +140,7 @@ async function exportHtml(): Promise<void> {
       html,
       filename,
     });
-    // 显示短暂成功反馈（Chrome 会自动弹出下载提示）
+
     const status = document.querySelector('.__translator_status');
     if (status) {
       status.textContent = '导出成功，请查看浏览器下载';
@@ -117,6 +156,7 @@ async function exportHtml(): Promise<void> {
 }
 
 async function clearTranslation(): Promise<void> {
+  translationCache.clear();
   restoreOriginal(document.body);
   textBlocks = extractTextBlocks(document.body);
   if (sessionId) {

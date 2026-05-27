@@ -24,24 +24,11 @@ export function applyTranslation(
 }
 
 function replaceTextContent(parent: Element, translatedText: string): void {
-  const walker = document.createTreeWalker(parent, NodeFilter.SHOW_TEXT);
-  const textNodes: Text[] = [];
-  let node: Node | null = walker.nextNode();
-  while (node) {
-    textNodes.push(node as Text);
-    node = walker.nextNode();
+  // 保存原文以便后续恢复
+  if (!parent.hasAttribute('data-trans-original')) {
+    parent.setAttribute('data-trans-original', parent.innerHTML);
   }
-
-  const translationNode = document.createTextNode(translatedText);
-  if (textNodes.length > 0) {
-    parent.insertBefore(translationNode, textNodes[0]);
-  } else {
-    parent.appendChild(translationNode);
-  }
-
-  for (const tn of textNodes) {
-    tn.remove();
-  }
+  parent.textContent = translatedText;
 }
 
 function insertTranslationSpan(
@@ -94,7 +81,13 @@ export function restoreOriginal(root: Element): void {
   for (const el of inserted) {
     el.remove();
   }
-  // 清除块级元素上的 data-trans-id
+  // 恢复纯译文模式下被替换的原文
+  const replaced = root.querySelectorAll('[data-trans-original]');
+  for (const el of replaced) {
+    el.innerHTML = el.getAttribute('data-trans-original')!;
+    el.removeAttribute('data-trans-original');
+  }
+  // 清除块级元素上的标记
   const marked = root.querySelectorAll('[data-trans-id]');
   for (const el of marked) {
     el.removeAttribute('data-trans-id');
