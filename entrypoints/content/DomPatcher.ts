@@ -10,14 +10,22 @@ export function applyTranslation(
 
   for (const block of textBlocks) {
     const translated = translationMap.get(block.id);
-    if (!translated) continue;
+    if (!translated) {
+      console.warn(`[Translator] 未找到 ${block.id} 的翻译结果`);
+      continue;
+    }
 
     const parent = root.querySelector(`[data-trans-id="${block.id}"]`);
-    if (!parent) continue;
+    if (!parent) {
+      console.warn(`[Translator] 未找到 data-trans-id="${block.id}" 的 DOM 元素`);
+      continue;
+    }
 
     if (mode === 'translation-only') {
+      console.log(`[Translator] 纯译文模式: 替换 ${block.id} → "${translated.slice(0, 30)}..."`);
       replaceTextContent(parent, translated);
     } else {
+      console.log(`[Translator] 英汉对照: 追加 ${block.id} → "${translated.slice(0, 30)}..."`);
       insertTranslationSpan(parent, block.id, translated);
     }
   }
@@ -46,6 +54,7 @@ function insertTranslationSpan(
 
   // 译文前插入换行，方便阅读
   const br = document.createElement('br');
+  br.className = '__translator_br';
   br.setAttribute('data-trans-id', id);
   parent.appendChild(br);
 
@@ -56,40 +65,25 @@ function insertTranslationSpan(
   parent.appendChild(span);
 }
 
-export function switchDisplayMode(
-  root: Element,
-  mode: 'bilingual' | 'translation-only',
-): void {
-  const show = mode === 'bilingual';
-  // 切换译文 span
-  const spans = root.querySelectorAll('.__translator_text');
-  for (const span of spans) {
-    (span as HTMLElement).style.display = show ? '' : 'none';
-  }
-  // 切换换行 br
-  const brs = root.querySelectorAll('br[data-trans-id]');
-  for (const br of brs) {
-    (br as HTMLElement).style.display = show ? '' : 'none';
-  }
-}
-
+/**
+ * 从 DOM 中移除所有翻译相关元素并恢复原文。
+ * 保留块级元素上的 data-trans-id，供模式切换时重新定位使用。
+ */
 export function restoreOriginal(root: Element): void {
-  // 移除翻译插入的所有元素（span + br）
-  const inserted = root.querySelectorAll(
-    '.__translator_text, br[data-trans-id]',
-  );
+  // 移除翻译插入的 span 和换行 br
+  const inserted = root.querySelectorAll('.__translator_text, .__translator_br');
+  console.log(`[Translator] restoreOriginal: 移除 ${inserted.length} 个翻译插入元素`);
   for (const el of inserted) {
     el.remove();
   }
+
   // 恢复纯译文模式下被替换的原文
   const replaced = root.querySelectorAll('[data-trans-original]');
+  console.log(`[Translator] restoreOriginal: 恢复 ${replaced.length} 个纯译文替换元素`);
   for (const el of replaced) {
     el.innerHTML = el.getAttribute('data-trans-original')!;
     el.removeAttribute('data-trans-original');
   }
-  // 清除块级元素上的标记
-  const marked = root.querySelectorAll('[data-trans-id]');
-  for (const el of marked) {
-    el.removeAttribute('data-trans-id');
-  }
+
+  // 注意：保留块级元素上的 data-trans-id，供 reapplyAllTranslations 使用
 }

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyTranslation,
-  switchDisplayMode,
   restoreOriginal,
 } from '../../entrypoints/content/DomPatcher';
 import type { TextBlock, TranslatedBlock } from '../../core/types';
@@ -57,33 +56,25 @@ describe('applyTranslation - translation-only mode', () => {
   });
 });
 
-describe('switchDisplayMode', () => {
-  it('hides translation spans when switching to translation-only', () => {
-    const doc = createDoc(
-      '<p>Hello<span class="__translator_text" data-trans-id="b1">你好</span></p>',
-    );
-    switchDisplayMode(doc.body, 'translation-only');
-    const span = doc.querySelector('.__translator_text') as HTMLElement;
-    expect(span.style.display).toBe('none');
-  });
-
-  it('shows translation spans when switching to bilingual', () => {
-    const doc = createDoc(
-      '<p>Hello<span class="__translator_text" style="display:none">你好</span></p>',
-    );
-    switchDisplayMode(doc.body, 'bilingual');
-    const span = doc.querySelector('.__translator_text') as HTMLElement;
-    expect(span.style.display).toBe('');
-  });
-});
-
 describe('restoreOriginal', () => {
-  it('removes all translation spans and data-trans-id', () => {
+  it('removes translation spans but keeps data-trans-id on block elements', () => {
     const doc = createDoc(
       '<p data-trans-id="b1">Hello<span class="__translator_text">你好</span></p>',
     );
     restoreOriginal(doc.body);
     expect(doc.querySelector('.__translator_text')).toBeNull();
-    expect(doc.querySelector('[data-trans-id]')).toBeNull();
+    // 块级元素上的 data-trans-id 保留（供模式切换用）
+    expect(doc.querySelector('[data-trans-id]')).not.toBeNull();
+  });
+
+  it('restores elements replaced by translation-only mode', () => {
+    const doc = createDoc(
+      '<p data-trans-id="b1" data-trans-original="Hello <strong>world</strong>">你好</p>',
+    );
+    restoreOriginal(doc.body);
+    const p = doc.querySelector('p')!;
+    expect(p.innerHTML).toContain('Hello');
+    expect(p.innerHTML).toContain('strong');
+    expect(p.hasAttribute('data-trans-original')).toBe(false);
   });
 });
