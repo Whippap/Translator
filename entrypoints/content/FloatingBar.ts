@@ -11,7 +11,6 @@ interface FloatingBarCallbacks {
 export class FloatingBar {
   private el: HTMLElement;
   private state: BarState = 'idle';
-  private reTranslateHandler: (() => void) | null = null;
 
   constructor(private calls: FloatingBarCallbacks) {
     this.el = this.createBar();
@@ -28,6 +27,9 @@ export class FloatingBar {
       <button class="__translator_btn_clear">清除</button>
       <span class="__translator_status"></span>
     `;
+
+    // 先将 this.el 指向新元素，确保 translateBtn/statusEl 可正常工作
+    this.el = el;
 
     this.translateBtn().addEventListener('click', () => {
       if (this.state === 'done-cached') {
