@@ -44,6 +44,10 @@ async function startTranslation(): Promise<void> {
     return;
   }
 
+  // 从设置同步当前显示模式
+  currentMode = settings.displayMode || 'bilingual';
+  bar.setMode(currentMode);
+
   // 重新提取文本块（可能由于上次清除或 DOM 变化）
   if (textBlocks.length === 0) {
     textBlocks = extractTextBlocks(document.body);
@@ -83,18 +87,33 @@ function toggleMode(): void {
 }
 
 async function exportHtml(): Promise<void> {
-  const clone = document.documentElement.cloneNode(true) as HTMLElement;
-  const cloneBar = clone.querySelector('.__translator_bar');
-  if (cloneBar) cloneBar.remove();
+  if (!bar) return;
+  try {
+    const clone = document.documentElement.cloneNode(true) as HTMLElement;
+    const cloneBar = clone.querySelector('.__translator_bar');
+    if (cloneBar) cloneBar.remove();
 
-  const html = '<!DOCTYPE html>\n' + clone.outerHTML;
-  const filename = `${document.title || 'translated-page'}.html`;
+    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
+    const filename = `${document.title || 'translated-page'}.html`;
 
-  await browser.runtime.sendMessage({
-    type: MESSAGE_TYPES.EXPORT_HTML,
-    html,
-    filename,
-  });
+    await browser.runtime.sendMessage({
+      type: MESSAGE_TYPES.EXPORT_HTML,
+      html,
+      filename,
+    });
+    // 显示短暂成功反馈（Chrome 会自动弹出下载提示）
+    const status = document.querySelector('.__translator_status');
+    if (status) {
+      status.textContent = '导出成功，请查看浏览器下载';
+      status.className = '__translator_status';
+      setTimeout(() => {
+        status.textContent = '';
+        status.className = '__translator_status';
+      }, 3000);
+    }
+  } catch {
+    bar.setError('导出失败，请重试');
+  }
 }
 
 async function clearTranslation(): Promise<void> {

@@ -57,6 +57,11 @@ function insertTranslationSpan(
     return;
   }
 
+  // 译文前插入换行，方便阅读
+  const br = document.createElement('br');
+  br.setAttribute('data-trans-id', id);
+  parent.appendChild(br);
+
   const span = document.createElement('span');
   span.className = '__translator_text';
   span.setAttribute('data-trans-id', id);
@@ -68,18 +73,28 @@ export function switchDisplayMode(
   root: Element,
   mode: 'bilingual' | 'translation-only',
 ): void {
+  const show = mode === 'bilingual';
+  // 切换译文 span
   const spans = root.querySelectorAll('.__translator_text');
   for (const span of spans) {
-    (span as HTMLElement).style.display =
-      mode === 'bilingual' ? '' : 'none';
+    (span as HTMLElement).style.display = show ? '' : 'none';
+  }
+  // 切换换行 br
+  const brs = root.querySelectorAll('br[data-trans-id]');
+  for (const br of brs) {
+    (br as HTMLElement).style.display = show ? '' : 'none';
   }
 }
 
 export function restoreOriginal(root: Element): void {
-  const spans = root.querySelectorAll('.__translator_text');
-  for (const span of spans) {
-    span.remove();
+  // 移除翻译插入的所有元素（span + br）
+  const inserted = root.querySelectorAll(
+    '.__translator_text, br[data-trans-id]',
+  );
+  for (const el of inserted) {
+    el.remove();
   }
+  // 清除块级元素上的 data-trans-id
   const marked = root.querySelectorAll('[data-trans-id]');
   for (const el of marked) {
     el.removeAttribute('data-trans-id');

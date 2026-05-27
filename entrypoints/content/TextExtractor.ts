@@ -3,13 +3,51 @@ import { type TextBlock, MAX_TEXT_BLOCKS } from '../../core/types';
 const SKIP_TAGS = new Set([
   'SCRIPT', 'STYLE', 'CODE', 'PRE', 'IMG',
   'NOSCRIPT', 'IFRAME', 'SVG', 'TEXTAREA', 'INPUT',
+  'HEADER', 'FOOTER', 'NAV',
 ]);
+
+/** 跳过翻译的 CSS 选择器（页头/页脚/导航/插件控制条） */
+const SKIP_SELECTORS = [
+  '[role="banner"]',
+  '[role="contentinfo"]',
+  '[role="navigation"]',
+  '.__translator_bar',
+  '.header',
+  '.footer',
+  '.navbar',
+  '.site-header',
+  '.site-footer',
+  '.page-header',
+  '.page-footer',
+  '#header',
+  '#footer',
+  '#navbar',
+];
+
+function shouldSkipElement(el: Element): boolean {
+  if (SKIP_TAGS.has(el.tagName)) return true;
+  for (const sel of SKIP_SELECTORS) {
+    if (el.matches(sel)) return true;
+  }
+  return false;
+}
 const BLOCK_TAGS = new Set([
   'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
   'LI', 'TD', 'TH', 'DIV', 'SECTION', 'ARTICLE',
   'MAIN', 'ASIDE', 'BLOCKQUOTE', 'FIGCAPTION', 'DT', 'DD',
   'SUMMARY', 'LABEL', 'LEGEND', 'BUTTON',
 ]);
+
+function shouldSkipAncestor(node: Node, root: Element): boolean {
+  let ancestor: Node | null = node.parentNode;
+  while (ancestor && ancestor !== root) {
+    if (ancestor.nodeType === Node.ELEMENT_NODE) {
+      if (shouldSkipElement(ancestor as Element)) return true;
+    }
+    ancestor = ancestor.parentNode;
+  }
+  return false;
+}
 
 function findBlockParent(node: Node): Element | null {
   let current: Node | null = node;
@@ -39,24 +77,11 @@ export function extractTextBlocks(root: Element): TextBlock[] {
 
   let node: Node | null = walker.nextNode();
   while (node) {
-    // 检查是否有跳过标签的祖先
-    let shouldSkip = false;
-    let ancestor: Node | null = node.parentNode;
-    while (ancestor && ancestor !== root) {
-      if (ancestor.nodeType === Node.ELEMENT_NODE) {
-        if (SKIP_TAGS.has((ancestor as Element).tagName)) {
-          shouldSkip = true;
-          break;
-        }
-      }
-      ancestor = ancestor.parentNode;
-    }
-
-    if (!shouldSkip) {
+    if (!shouldSkipAncestor(node, root)) {
       const text = node.textContent?.replace(/\s+/g, ' ').trim();
       if (text && text.length > 0) {
         const blockParent = findBlockParent(node);
-        if (blockParent) {
+        if (blockParent && !shouldSkipElement(blockParent)) {
           const existing = blockMap.get(blockParent);
           if (existing) {
             existing.push(text);
