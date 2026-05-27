@@ -172,20 +172,41 @@ async function clearTranslation(): Promise<void> {
 function watchNavigation(): void {
   let lastUrl = location.href;
 
+  // 拦截 SPA pushState / replaceState
   const originalPushState = history.pushState.bind(history);
   const originalReplaceState = history.replaceState.bind(history);
 
   history.pushState = function (...args) {
     originalPushState(...args);
-    onUrlChange();
+    scheduleCheck();
   };
   history.replaceState = function (...args) {
     originalReplaceState(...args);
-    onUrlChange();
+    scheduleCheck();
   };
-  window.addEventListener('popstate', onUrlChange);
 
-  function onUrlChange(): void {
+  // popstate（浏览器前进/后退）
+  window.addEventListener('popstate', scheduleCheck);
+  // hashchange（锚点路由，如 #/page1 → #/page2）
+  window.addEventListener('hashchange', scheduleCheck);
+
+  // 定时轮询兜底：捕获 location.href 直接赋值等不触发事件的情况
+  const pollInterval = setInterval(checkUrlChange, 500);
+
+  // 页面卸载时清理
+  window.addEventListener('beforeunload', () => {
+    clearInterval(pollInterval);
+  });
+
+  let checkTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleCheck(): void {
+    // 防抖：SPA 路由可能短时间内多次触发，延迟统一处理
+    if (checkTimer) clearTimeout(checkTimer);
+    checkTimer = setTimeout(checkUrlChange, 100);
+  }
+
+  function checkUrlChange(): void {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       clearTranslation();
