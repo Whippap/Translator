@@ -355,9 +355,16 @@ function watchNavigation(): void {
 
   function checkUrlChange(): void {
     if (location.href !== lastUrl) {
-      log(`检测到 URL 变化: ${lastUrl} → ${location.href}`);
+      // 仅 hash 变化（页内锚点跳转）不重置翻译状态
+      const currentBase = location.origin + location.pathname + location.search;
+      const lastBase = lastUrl.replace(/#.*$/, '');
+      if (currentBase !== lastBase) {
+        log(`检测到页面变化: ${lastUrl} → ${location.href}`);
+        clearTranslation();
+      } else {
+        log(`仅 hash 变化，跳过重置: ${lastUrl} → ${location.href}`);
+      }
       lastUrl = location.href;
-      clearTranslation();
     }
   }
 }
