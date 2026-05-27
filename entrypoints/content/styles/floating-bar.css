@@ -1,0 +1,69 @@
+.__translator_bar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #cdd6f4;
+  user-select: none;
+}
+
+.__translator_bar button {
+  padding: 6px 12px;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  background: #313244;
+  color: #cdd6f4;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.__translator_bar button:hover {
+  background: #45475a;
+}
+
+.__translator_bar button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.__translator_bar button.__translator_primary {
+  background: #89b4fa;
+  color: #1e1e2e;
+  border-color: #89b4fa;
+}
+
+.__translator_bar button.__translator_primary:hover {
+  background: #74c7ec;
+}
+
+.__translator_bar .__translator_status {
+  font-size: 11px;
+  color: #a6adc8;
+  margin-left: 8px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.__translator_bar .__translator_error {
+  color: #f38ba8;
+}
+
+.__translator_bar .__translator_divider {
+  width: 1px;
+  height: 20px;
+  background: #45475a;
+  margin: 0 4px;
+}

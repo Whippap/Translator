@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#1e1e2e"/>
+  <text x="64" y="72" text-anchor="middle" font-family="sans-serif" font-size="56" font-weight="bold" fill="#89b4fa">T</text>
+  <text x="64" y="104" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#74c7ec">译</text>
+</svg>

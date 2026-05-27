@@ -21,8 +21,8 @@ export async function getCachedTranslation(
   text: string,
 ): Promise<string | null> {
   const key = getCacheKey(url, text);
-  const result = await chrome.storage.local.get(key);
-  const entry: CacheEntry | undefined = result[key];
+  const result = await chrome.storage.local.get(key) as Record<string, CacheEntry | undefined>;
+  const entry = result[key];
   return entry?.translated ?? null;
 }
 
@@ -45,7 +45,7 @@ export async function setCachedTranslation(
 export async function clearCacheForUrl(url: string): Promise<void> {
   const urlHash = hashString(url, 8);
   const prefix = `cache:${urlHash}:`;
-  const allData = await chrome.storage.local.get(null);
+  const allData = await chrome.storage.local.get(null) as Record<string, unknown>;
   const keysToRemove = Object.keys(allData).filter(k => k.startsWith(prefix));
   if (keysToRemove.length > 0) {
     await chrome.storage.local.remove(keysToRemove);

@@ -26,7 +26,7 @@ export async function appendMessage(
 }
 
 export async function getMessages(sessionId: SessionId): Promise<ChatMessage[]> {
-  const result = await chrome.storage.session.get(sessionId);
+  const result = await chrome.storage.session.get(sessionId) as Record<string, ChatMessage[] | undefined>;
   return result[sessionId] ?? [];
 }
 

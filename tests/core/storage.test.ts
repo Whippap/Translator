@@ -6,21 +6,24 @@ const mockStorage: Record<string, any> = {};
 
 beforeEach(() => {
   Object.keys(mockStorage).forEach(k => delete mockStorage[k]);
-  chrome.storage.local.get = async (keys: string | string[] | null) => {
-    if (keys === null) return { ...mockStorage };
-    const keyArr = Array.isArray(keys) ? keys : [keys];
-    const result: Record<string, any> = {};
-    for (const key of keyArr) {
-      if (key in mockStorage) result[key] = mockStorage[key];
-    }
-    return result;
-  };
-  chrome.storage.local.set = async (items: Record<string, any>) => {
-    Object.assign(mockStorage, items);
-  };
-  chrome.storage.local.remove = async (keys: string | string[]) => {
-    const arr = Array.isArray(keys) ? keys : [keys];
-    for (const key of arr) delete mockStorage[key];
+  // @ts-expect-error mock for tests
+  chrome.storage.local = {
+    get: async (keys: string | string[] | null) => {
+      if (keys === null) return { ...mockStorage };
+      const keyArr = Array.isArray(keys) ? keys : [keys];
+      const result: Record<string, any> = {};
+      for (const key of keyArr) {
+        if (key in mockStorage) result[key] = mockStorage[key];
+      }
+      return result;
+    },
+    set: async (items: Record<string, any>) => {
+      Object.assign(mockStorage, items);
+    },
+    remove: async (keys: string | string[]) => {
+      const arr = Array.isArray(keys) ? keys : [keys];
+      for (const key of arr) delete mockStorage[key];
+    },
   };
 });
 
@@ -42,7 +45,11 @@ describe('getSettings', () => {
 
 describe('saveSettings', () => {
   it('writes all settings to storage', async () => {
-    await saveSettings({ apiKey: 'sk-new', engine: 'deepseek-v4-pro', displayMode: 'translation-only' });
+    await saveSettings({
+      apiKey: 'sk-new',
+      engine: 'deepseek-v4-pro',
+      displayMode: 'translation-only',
+    });
     expect(mockStorage.apiKey).toBe('sk-new');
     expect(mockStorage.engine).toBe('deepseek-v4-pro');
     expect(mockStorage.displayMode).toBe('translation-only');

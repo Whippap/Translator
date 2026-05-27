@@ -12,21 +12,24 @@ const mockSessionData: Record<string, any> = {};
 
 beforeEach(() => {
   Object.keys(mockSessionData).forEach(k => delete mockSessionData[k]);
-  chrome.storage.session.get = async (keys: string | string[] | null) => {
-    if (keys === null) return { ...mockSessionData };
-    const keyArr = Array.isArray(keys) ? keys : [keys];
-    const result: Record<string, any> = {};
-    for (const key of keyArr) {
-      if (key in mockSessionData) result[key] = mockSessionData[key];
-    }
-    return result;
-  };
-  chrome.storage.session.set = async (items: Record<string, any>) => {
-    Object.assign(mockSessionData, items);
-  };
-  chrome.storage.session.remove = async (keys: string | string[]) => {
-    const arr = Array.isArray(keys) ? keys : [keys];
-    for (const key of arr) delete mockSessionData[key];
+  // @ts-expect-error mock for tests
+  chrome.storage.session = {
+    get: async (keys: string | string[] | null) => {
+      if (keys === null) return { ...mockSessionData };
+      const keyArr = Array.isArray(keys) ? keys : [keys];
+      const result: Record<string, any> = {};
+      for (const key of keyArr) {
+        if (key in mockSessionData) result[key] = mockSessionData[key];
+      }
+      return result;
+    },
+    set: async (items: Record<string, any>) => {
+      Object.assign(mockSessionData, items);
+    },
+    remove: async (keys: string | string[]) => {
+      const arr = Array.isArray(keys) ? keys : [keys];
+      for (const key of arr) delete mockSessionData[key];
+    },
   };
 });
 
