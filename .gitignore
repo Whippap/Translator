@@ -6,4 +6,5 @@ dist/
 .idea/
 .claude/
 docs/
-CLAUDE.md
+/CLAUDE.md
+/项目开发指导.md
