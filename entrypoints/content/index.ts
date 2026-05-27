@@ -196,9 +196,8 @@ function exportHtml(): void {
   }
 }
 
-/** 将克隆 DOM 中的相对 URL 转为绝对 URL */
+/** 将克隆 DOM 中的相对 URL 转为绝对 URL，并剥离图片优化代理 */
 function makeUrlsAbsolute(root: HTMLElement): void {
-  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
   const urlAttrs: Record<string, string[]> = {
     link: ['href'],
     img: ['src', 'srcset'],
@@ -212,13 +211,25 @@ function makeUrlsAbsolute(root: HTMLElement): void {
     for (const el of els) {
       for (const attr of attrs) {
         const val = el.getAttribute(attr);
-        if (val && !val.startsWith('http') && !val.startsWith('data:') && !val.startsWith('//')) {
+        if (!val || val.startsWith('data:')) continue;
+
+        let resolved: string;
+        if (val.startsWith('http') || val.startsWith('//')) {
+          resolved = val.startsWith('//') ? `https:${val}` : val;
+        } else {
           try {
-            el.setAttribute(attr, new URL(val, location.href).href);
+            resolved = new URL(val, location.href).href;
           } catch {
-            // 无法解析的 URL 保持原样
+            continue;
           }
         }
+
+        // 剥离 Next.js 图片优化代理: /_next/image?url=... → 直接引用原图
+        if (tag === 'img') {
+          resolved = stripImageProxy(resolved);
+        }
+
+        el.setAttribute(attr, resolved);
       }
     }
   }
@@ -243,6 +254,46 @@ function makeUrlsAbsolute(root: HTMLElement): void {
   }
 
   log('URL 转换完成');
+}
+
+/**
+ * 剥离图片优化代理层（Next.js /_next/image, Cloudflare /cdn-cgi/image 等）
+ * 例: https://nextjs.org/_next/image?url=%2Fimg.png&w=384&q=75
+ *   → https://nextjs.org/img.png
+ */
+function stripImageProxy(url: string): string {
+  // Next.js: /_next/image?url=<encoded-url>
+  const nextMatch = url.match(/\/_next\/image\?.*[?&]url=([^&]+)/);
+  if (nextMatch) {
+    const rawUrl = decodeURIComponent(nextMatch[1]);
+    try {
+      return new URL(rawUrl, url).href;
+    } catch {
+      return url;
+    }
+  }
+
+  // Cloudflare: /cdn-cgi/image/<options>/<path>
+  const cfMatch = url.match(/\/cdn-cgi\/image\/[^/]+\/(.+)$/);
+  if (cfMatch) {
+    try {
+      return new URL(cfMatch[1], url).href;
+    } catch {
+      return url;
+    }
+  }
+
+  // Nuxt/IPX: /_ipx/<params>/<path>
+  const ipxMatch = url.match(/\/_ipx\/[^/]+\/(.+)$/);
+  if (ipxMatch) {
+    try {
+      return new URL(ipxMatch[1], url).href;
+    } catch {
+      return url;
+    }
+  }
+
+  return url;
 }
 
 async function clearTranslation(): Promise<void> {

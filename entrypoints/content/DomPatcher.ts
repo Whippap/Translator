@@ -49,7 +49,7 @@ function insertTranslationSpan(
     `.__translator_text[data-trans-id="${id}"]`,
   );
   if (existing) {
-    existing.textContent = translated;
+    existing.innerHTML = translated;
     return;
   }
 
@@ -62,7 +62,7 @@ function insertTranslationSpan(
   const span = document.createElement('span');
   span.className = '__translator_text';
   span.setAttribute('data-trans-id', id);
-  span.textContent = translated;
+  span.innerHTML = translated;
   parent.appendChild(span);
 }
 
