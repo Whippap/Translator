@@ -438,14 +438,15 @@ function watchNavigation(): void {
 
   function checkUrlChange(): void {
     if (location.href !== lastUrl) {
-      // 仅 hash 变化（页内锚点跳转）不重置翻译状态
-      const currentBase = location.origin + location.pathname + location.search;
-      const lastBase = lastUrl.replace(/#.*$/, '');
+      // 仅 origin + pathname 变化才视为页面切换；
+      // query 参数（如 ?tab=readme）和 hash（如 #section）变化不重置翻译
+      const currentBase = location.origin + location.pathname;
+      const lastBase = lastUrl.replace(/[?#].*$/, '');
       if (currentBase !== lastBase) {
         log(`检测到页面变化: ${lastUrl} → ${location.href}`);
         clearTranslation();
       } else {
-        log(`仅 hash 变化，跳过重置: ${lastUrl} → ${location.href}`);
+        log(`仅 query/hash 变化，跳过重置: ${lastUrl} → ${location.href}`);
       }
       lastUrl = location.href;
     }
