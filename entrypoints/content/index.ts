@@ -165,11 +165,21 @@ function reapplyAllTranslations(): void {
     return depthB - depthA; // 深的在前
   });
 
+  // 预保存所有元素的原文，确保子块被替换前父块的原文已正确保存
+  if (currentMode === 'translation-only') {
+    for (const block of sorted) {
+      const el = document.querySelector(`[data-trans-id="${block.id}"]`);
+      if (el && !el.hasAttribute('data-trans-original')) {
+        el.setAttribute('data-trans-original', el.innerHTML);
+      }
+    }
+  }
+
   let applied = 0;
   for (const block of sorted) {
     const translated = translationCache.get(block.id);
     if (translated) {
-      // 重新查询元素是否仍存在（父块替换可能已移除它）
+      // 重新查询元素是否仍存在（父块 innerHTML 恢复或 DOM 框架可能已移除它）
       const el = document.querySelector(`[data-trans-id="${block.id}"]`);
       if (!el) {
         log(`跳过 ${block.id}: 元素已不在 DOM 中`);

@@ -95,13 +95,19 @@ export function restoreOriginal(root: Element): void {
     el.remove();
   }
 
-  // 恢复纯译文模式下被替换的原文
+  // 恢复纯译文模式下被替换的原文。
+  // 关键：按文档顺序处理（父 → 子），父元素恢复 innerHTML 后会重建子元素，
+  // 此时跳过子元素的单独恢复，避免操作已脱离 DOM 的旧元素。
   const replaced = root.querySelectorAll('[data-trans-original]');
+  const restoredParents = new WeakSet<Element>();
   console.log(`[Translator] restoreOriginal: 恢复 ${replaced.length} 个纯译文替换元素`);
+
   for (const el of replaced) {
+    // 检查当前元素是否仍在 DOM 中（可能已被父元素 innerHTML 重建替换了）
+    if (!root.contains(el)) continue;
+
     el.innerHTML = el.getAttribute('data-trans-original')!;
     el.removeAttribute('data-trans-original');
+    restoredParents.add(el);
   }
-
-  // 注意：保留块级元素上的 data-trans-id，供 reapplyAllTranslations 使用
 }
