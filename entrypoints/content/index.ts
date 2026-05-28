@@ -142,7 +142,10 @@ async function startTranslation(skipCache: boolean): Promise<void> {
   }
 }
 
+let reapplyLock = false;
+
 function toggleMode(): void {
+  if (reapplyLock) { log('模式切换被锁定，跳过'); return; }
   log(`=== 切换模式: ${currentMode} → ${currentMode === 'bilingual' ? 'translation-only' : 'bilingual'} ===`);
   currentMode = currentMode === 'bilingual' ? 'translation-only' : 'bilingual';
   log(`翻译缓存中有 ${translationCache.size} 条结果`);
@@ -152,11 +155,18 @@ function toggleMode(): void {
 }
 
 function reapplyAllTranslations(): void {
-  restoreOriginal(document.body);
+  reapplyLock = true;
+  try {
+    restoreOriginal(document.body);
 
-  // 重新提取文本块，确保 data-trans-id 与当前 DOM 一致
-  // （父元素 innerHTML 恢复后子元素被重建，旧 ID 引用可能失效）
-  const freshBlocks = extractTextBlocks(document.body);
+    // 清除所有旧 data-trans-id，避免与重新提取冲突
+    const oldIds = document.querySelectorAll('[data-trans-id]');
+    for (const el of oldIds) el.removeAttribute('data-trans-id');
+    const oldOriginals = document.querySelectorAll('[data-trans-original]');
+    for (const el of oldOriginals) el.removeAttribute('data-trans-original');
+
+    // 重新提取文本块，得到全新 ID
+    const freshBlocks = extractTextBlocks(document.body);
 
   // 按文本内容建立 旧ID→新ID 和 新ID→旧ID 双向映射
   const oldToNew = new Map<string, string>();
@@ -212,6 +222,9 @@ function reapplyAllTranslations(): void {
   }
   if (skipped > 0) log(`reapplyAllTranslations: 跳过 ${skipped} 个, 应用 ${applied} 个, 模式: ${currentMode}`);
   else log(`reapplyAllTranslations: 重新应用了 ${applied} 个翻译块, 模式: ${currentMode}`);
+  } finally {
+    reapplyLock = false;
+  }
 }
 
 function getDepth(el: Element): number {
