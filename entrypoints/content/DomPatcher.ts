@@ -36,8 +36,25 @@ function replaceTextContent(parent: Element, translatedText: string): void {
   if (!parent.hasAttribute('data-trans-original')) {
     parent.setAttribute('data-trans-original', parent.innerHTML);
   }
-  // 使用 innerHTML 而非 textContent，保留译文中的行内标签（如 <code>）
-  parent.innerHTML = translatedText;
+
+  // 检查是否有嵌套的子翻译块，避免 innerHTML 摧毁它们
+  const childBlocks = parent.querySelectorAll('[data-trans-id]');
+  if (childBlocks.length > 0) {
+    // 仅替换直接文本节点，保留子元素（含其翻译）
+    for (let i = parent.childNodes.length - 1; i >= 0; i--) {
+      const child = parent.childNodes[i];
+      if (child.nodeType === Node.TEXT_NODE) {
+        child.remove();
+      }
+    }
+    const span = document.createElement('span');
+    span.className = '__translator_replaced';
+    span.innerHTML = translatedText;
+    parent.insertBefore(span, parent.firstChild);
+  } else {
+    // 无嵌套翻译块，安全替换整个内容
+    parent.innerHTML = translatedText;
+  }
 }
 
 function insertTranslationSpan(
@@ -71,8 +88,8 @@ function insertTranslationSpan(
  * 保留块级元素上的 data-trans-id，供模式切换时重新定位使用。
  */
 export function restoreOriginal(root: Element): void {
-  // 移除翻译插入的 span 和换行 br
-  const inserted = root.querySelectorAll('.__translator_text, .__translator_br');
+  // 移除翻译插入的 span、换行 br、以及直接文本替换的 span
+  const inserted = root.querySelectorAll('.__translator_text, .__translator_br, .__translator_replaced');
   console.log(`[Translator] restoreOriginal: 移除 ${inserted.length} 个翻译插入元素`);
   for (const el of inserted) {
     el.remove();

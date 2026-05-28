@@ -155,10 +155,26 @@ function toggleMode(): void {
 function reapplyAllTranslations(): void {
   // 恢复 DOM 到翻译前状态（保留 data-trans-id 以重新定位元素）
   restoreOriginal(document.body);
+
+  // 按 DOM 深度排序：子元素先处理，避免父元素替换 innerHTML 时摧毁子元素
+  const sorted = [...textBlocks].sort((a, b) => {
+    const elA = document.querySelector(`[data-trans-id="${a.id}"]`);
+    const elB = document.querySelector(`[data-trans-id="${b.id}"]`);
+    const depthA = elA ? getDepth(elA) : 0;
+    const depthB = elB ? getDepth(elB) : 0;
+    return depthB - depthA; // 深的在前
+  });
+
   let applied = 0;
-  for (const block of textBlocks) {
+  for (const block of sorted) {
     const translated = translationCache.get(block.id);
     if (translated) {
+      // 重新查询元素是否仍存在（父块替换可能已移除它）
+      const el = document.querySelector(`[data-trans-id="${block.id}"]`);
+      if (!el) {
+        log(`跳过 ${block.id}: 元素已不在 DOM 中`);
+        continue;
+      }
       applyTranslation(
         document.body,
         [block],
@@ -169,6 +185,16 @@ function reapplyAllTranslations(): void {
     }
   }
   log(`reapplyAllTranslations: 重新应用了 ${applied} 个翻译块, 模式: ${currentMode}`);
+}
+
+function getDepth(el: Element): number {
+  let depth = 0;
+  let current: Element | null = el;
+  while (current) {
+    depth++;
+    current = current.parentElement;
+  }
+  return depth;
 }
 
 function exportHtml(): void {
