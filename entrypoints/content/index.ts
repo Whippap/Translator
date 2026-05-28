@@ -84,10 +84,9 @@ async function startTranslation(skipCache: boolean): Promise<void> {
   log('翻译模式:', currentMode);
   bar.setMode(currentMode);
 
-  if (textBlocks.length === 0) {
-    textBlocks = extractTextBlocks(document.body);
-    log(`重新提取到 ${textBlocks.length} 个文本块`);
-  }
+  // 每次翻译前重新提取文本块，确保 ID 与当前 DOM 一致
+  textBlocks = extractTextBlocks(document.body);
+  log(`提取到 ${textBlocks.length} 个文本块`);
 
   if (!sessionId) {
     sessionId = await browser.runtime.sendMessage({ type: 'create-session' });
@@ -153,19 +152,34 @@ function toggleMode(): void {
 }
 
 function reapplyAllTranslations(): void {
-  // 恢复 DOM 到翻译前状态（保留 data-trans-id 以重新定位元素）
   restoreOriginal(document.body);
 
-  // 按 DOM 深度排序：子元素先处理，避免父元素替换 innerHTML 时摧毁子元素
-  const sorted = [...textBlocks].sort((a, b) => {
+  // 重新提取文本块，确保 data-trans-id 与当前 DOM 一致
+  // （父元素 innerHTML 恢复后子元素被重建，旧 ID 引用可能失效）
+  const freshBlocks = extractTextBlocks(document.body);
+
+  // 按文本内容建立 旧ID→新ID 和 新ID→旧ID 双向映射
+  const oldToNew = new Map<string, string>();
+  const newToOld = new Map<string, string>();
+  for (const oldBlock of textBlocks) {
+    const match = freshBlocks.find(b => b.text === oldBlock.text);
+    if (match) {
+      oldToNew.set(oldBlock.id, match.id);
+      newToOld.set(match.id, oldBlock.id);
+    }
+  }
+
+  // 更新 textBlocks 为最新提取结果
+  textBlocks = freshBlocks;
+
+  // 按深度排序：子元素先处理
+  const sorted = [...freshBlocks].sort((a, b) => {
     const elA = document.querySelector(`[data-trans-id="${a.id}"]`);
     const elB = document.querySelector(`[data-trans-id="${b.id}"]`);
-    const depthA = elA ? getDepth(elA) : 0;
-    const depthB = elB ? getDepth(elB) : 0;
-    return depthB - depthA; // 深的在前
+    return (elB ? getDepth(elB) : 0) - (elA ? getDepth(elA) : 0);
   });
 
-  // 预保存所有元素的原文，确保子块被替换前父块的原文已正确保存
+  // 预保存原文（translation-only 模式需要）
   if (currentMode === 'translation-only') {
     for (const block of sorted) {
       const el = document.querySelector(`[data-trans-id="${block.id}"]`);
@@ -176,25 +190,28 @@ function reapplyAllTranslations(): void {
   }
 
   let applied = 0;
+  let skipped = 0;
   for (const block of sorted) {
-    const translated = translationCache.get(block.id);
-    if (translated) {
-      // 重新查询元素是否仍存在（父块 innerHTML 恢复或 DOM 框架可能已移除它）
-      const el = document.querySelector(`[data-trans-id="${block.id}"]`);
-      if (!el) {
-        log(`跳过 ${block.id}: 元素已不在 DOM 中`);
-        continue;
-      }
-      applyTranslation(
-        document.body,
-        [block],
-        [{ id: block.id, text: translated, fromCache: true }],
-        currentMode,
-      );
-      applied++;
+    // 通过反向映射查找旧翻译缓存
+    const oldId = newToOld.get(block.id);
+    const translated = oldId ? translationCache.get(oldId) : undefined;
+    if (!translated) continue;
+
+    const el = document.querySelector(`[data-trans-id="${block.id}"]`);
+    if (!el) {
+      skipped++;
+      continue;
     }
+    applyTranslation(
+      document.body,
+      [block],
+      [{ id: block.id, text: translated, fromCache: true }],
+      currentMode,
+    );
+    applied++;
   }
-  log(`reapplyAllTranslations: 重新应用了 ${applied} 个翻译块, 模式: ${currentMode}`);
+  if (skipped > 0) log(`reapplyAllTranslations: 跳过 ${skipped} 个, 应用 ${applied} 个, 模式: ${currentMode}`);
+  else log(`reapplyAllTranslations: 重新应用了 ${applied} 个翻译块, 模式: ${currentMode}`);
 }
 
 function getDepth(el: Element): number {
